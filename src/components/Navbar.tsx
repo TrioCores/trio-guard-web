@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import Logo from './Logo';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,8 +13,8 @@ const Navbar = () => {
   return (
     <header className="fixed top-0 left-0 w-full bg-white/95 shadow-sm backdrop-blur-sm z-50">
       <div className="container-custom flex items-center justify-between py-4">
-        <a href="#" className="flex items-center">
-          <span className="text-2xl font-bold text-trioguard">TrioGuard</span>
+        <a href="#" className="flex items-center hover:opacity-90 transition-opacity">
+          <Logo />
         </a>
 
         {/* Desktop Navigation */}

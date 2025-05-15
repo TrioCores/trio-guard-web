@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import HeroSection from "../components/HeroSection";
 import FeaturesSection from "../components/FeaturesSection";
@@ -10,6 +10,8 @@ import InviteSection from "../components/InviteSection";
 import Footer from "../components/Footer";
 
 const Index = () => {
+  const [scrollY, setScrollY] = useState(0);
+
   useEffect(() => {
     // Smooth scroll functionality for navigation links
     const handleNavClick = (e: MouseEvent) => {
@@ -26,11 +28,39 @@ const Index = () => {
       }
     };
 
+    // Track scroll position for animation triggers
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
     document.addEventListener('click', handleNavClick);
+    window.addEventListener('scroll', handleScroll);
     
     return () => {
       document.removeEventListener('click', handleNavClick);
+      window.removeEventListener('scroll', handleScroll);
     };
+  }, []);
+
+  // Add animation class to elements when they come into view
+  useEffect(() => {
+    const animateOnScroll = () => {
+      const elements = document.querySelectorAll('.animate-on-scroll');
+      
+      elements.forEach((element) => {
+        const elementTop = element.getBoundingClientRect().top;
+        const elementVisible = 150;
+        
+        if (elementTop < window.innerHeight - elementVisible) {
+          element.classList.add('animate-fade-in-up');
+        }
+      });
+    };
+    
+    window.addEventListener('scroll', animateOnScroll);
+    animateOnScroll(); // Run on initial load
+    
+    return () => window.removeEventListener('scroll', animateOnScroll);
   }, []);
 
   return (

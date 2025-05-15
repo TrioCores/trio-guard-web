@@ -1,5 +1,6 @@
 
 import { MessageCircle } from 'lucide-react';
+import Logo from './Logo';
 
 const Footer = () => {
   const year = new Date().getFullYear();
@@ -10,8 +11,8 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           <div className="col-span-1 md:col-span-2">
             <div className="mb-4">
-              <h3 className="text-2xl font-bold text-white mb-1">TrioGuard</h3>
-              <p className="text-white/70">Advanced Discord Moderation Bot</p>
+              <Logo variant="white" size="lg" />
+              <p className="text-white/70 mt-1">Advanced Discord Moderation Bot</p>
             </div>
             <p className="text-white/70 mb-6 max-w-md">
               Helping server administrators create safe and engaging Discord communities with powerful moderation tools and customizable features.
