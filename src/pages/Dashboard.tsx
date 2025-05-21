@@ -420,7 +420,7 @@ const Dashboard = () => {
                               placeholder="Welcome {user} to {server}!"
                             ></textarea>
                             <p className="text-xs text-trioguard-dark/60 mt-1">
-                              Use {user} for username, {server} for server name, {mention} to mention the user
+                              Use {"{user}"} for username, {"{server}"} for server name, {"{mention}"} to mention the user
                             </p>
                           </div>
                         </div>
