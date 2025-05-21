@@ -24,6 +24,7 @@ const Navbar = () => {
           <a href="#faq" className="text-trioguard-dark hover:text-trioguard transition-colors">FAQ</a>
           <a href="#changelog" className="text-trioguard-dark hover:text-trioguard transition-colors">Changelog</a>
           <a href="https://discord.gg/trioguard" target="_blank" rel="noopener noreferrer" className="btn-secondary">Support</a>
+          <a href="/dashboard" className="text-trioguard-dark hover:text-trioguard transition-colors">Dashboard</a>
           <a href="#invite" className="btn-primary">
             Invite Bot
           </a>
@@ -44,6 +45,7 @@ const Navbar = () => {
             <a href="#faq" className="text-trioguard-dark hover:text-trioguard transition-colors py-2" onClick={toggleMenu}>FAQ</a>
             <a href="#changelog" className="text-trioguard-dark hover:text-trioguard transition-colors py-2" onClick={toggleMenu}>Changelog</a>
             <a href="https://discord.gg/trioguard" target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-center" onClick={toggleMenu}>Support</a>
+            <a href="/dashboard" className="text-trioguard-dark hover:text-trioguard transition-colors py-2" onClick={toggleMenu}>Dashboard</a>
             <a href="#invite" className="btn-primary w-full text-center" onClick={toggleMenu}>Invite Bot</a>
           </div>
         </nav>

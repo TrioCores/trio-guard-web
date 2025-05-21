@@ -32,13 +32,11 @@ const InviteSection = () => {
               <ArrowRight size={20} className="ml-2" />
             </a>
             <a
-              href="https://discord.gg/trioguard"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/dashboard"
               className="bg-white/10 hover:bg-white/20 border border-white/20 font-medium px-8 py-4 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center hover:scale-105 duration-300"
             >
               <MessageCircle size={20} className="mr-2" />
-              <span>Join Support Server</span>
+              <span>Access Dashboard</span>
             </a>
           </div>
         </div>
