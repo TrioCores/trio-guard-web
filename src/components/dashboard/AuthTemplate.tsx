@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { Shield } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
 import Logo from '@/components/Logo';
-import { supabase } from "@/integrations/supabase/client";
 
 interface AuthTemplateProps {
   onLogin: () => void;
@@ -13,62 +12,31 @@ const AuthTemplate = ({ onLogin }: AuthTemplateProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        onLogin();
-      }
-      
+    // Simulate authentication check
+    const checkAuth = () => {
       setIsLoading(false);
     };
     
-    checkAuth();
-    
-    // Setup auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          onLogin();
-          toast({
-            title: "Login successful",
-            description: "You're now logged in with Discord",
-          });
-        }
-      }
-    );
-    
-    return () => subscription.unsubscribe();
-  }, [onLogin]);
+    // Simulate API delay
+    setTimeout(checkAuth, 1000);
+  }, []);
 
-  const handleDiscordLogin = async () => {
-    setIsLoading(true);
+  const handleLogin = () => {
+    // In a real application, this would redirect to Discord OAuth
     toast({
       title: "Redirecting to Discord",
-      description: "You will be redirected to Discord's OAuth page",
+      description: "You would be redirected to Discord's OAuth page",
     });
     
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'discord',
-        options: {
-          redirectTo: window.location.origin + '/dashboard'
-        }
-      });
-      
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
-      console.error('Discord login error:', error);
+    // Mock successful login after 1.5 seconds
+    setTimeout(() => {
+      localStorage.setItem('discord_auth', 'mock_token');
+      onLogin();
       toast({
-        title: "Login failed",
-        description: "There was an error logging in with Discord",
-        variant: "destructive"
+        title: "Login successful",
+        description: "You're now logged in with Discord",
       });
-      setIsLoading(false);
-    }
+    }, 1500);
   };
 
   if (isLoading) {
@@ -91,7 +59,7 @@ const AuthTemplate = ({ onLogin }: AuthTemplateProps) => {
           <div className="cursor-pointer">
             <Logo />
           </div>
-          <button onClick={handleDiscordLogin} className="btn-primary">
+          <button onClick={handleLogin} className="btn-primary">
             Login with Discord
           </button>
         </div>
@@ -108,7 +76,7 @@ const AuthTemplate = ({ onLogin }: AuthTemplateProps) => {
           </div>
           
           <button 
-            onClick={handleDiscordLogin}
+            onClick={handleLogin}
             className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center font-medium transition-colors"
           >
             <svg className="w-6 h-6 mr-2" viewBox="0 0 71 55" fill="none" xmlns="http://www.w3.org/2000/svg">

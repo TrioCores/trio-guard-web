@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 // Dashboard components
 import AuthTemplate from '../components/dashboard/AuthTemplate';
@@ -56,7 +55,6 @@ const mockSettings = {
 
 const Dashboard = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
   const [settings, setSettings] = useState(mockSettings);
   const [guilds, setGuilds] = useState(mockGuilds);
@@ -64,27 +62,10 @@ const Dashboard = () => {
 
   // Check auth on component mount
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setIsAuthenticated(!!session);
-      } catch (error) {
-        console.error('Error checking authentication:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setIsAuthenticated(!!session);
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    const auth = localStorage.getItem('discord_auth') || sessionStorage.getItem('discord_auth');
+    if (auth) {
+      setIsAuthenticated(true);
+    }
   }, []);
 
   // Handle login
@@ -93,37 +74,16 @@ const Dashboard = () => {
   };
 
   // Handle logout
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setIsAuthenticated(false);
-      setSelectedGuild(null);
-      toast({
-        title: "Logged out",
-        description: "You've been logged out successfully",
-      });
-    } catch (error) {
-      console.error('Error signing out:', error);
-      toast({
-        title: "Error",
-        description: "An error occurred while logging out",
-        variant: "destructive"
-      });
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('discord_auth');
+    sessionStorage.removeItem('discord_auth');
+    setIsAuthenticated(false);
+    setSelectedGuild(null);
+    toast({
+      title: "Logged out",
+      description: "You've been logged out successfully",
+    });
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-trioguard-bg">
-        <div className="text-center">
-          <div className="animate-pulse-soft inline-flex items-center justify-center p-4 bg-white rounded-full shadow-md mb-4">
-            <div className="w-8 h-8 text-trioguard">Loading...</div>
-          </div>
-          <h2 className="text-xl font-medium text-trioguard-dark">Loading dashboard...</h2>
-        </div>
-      </div>
-    );
-  }
 
   // If not authenticated, show the login screen
   if (!isAuthenticated) {

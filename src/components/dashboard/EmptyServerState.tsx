@@ -1,4 +1,5 @@
-import { Server, Shield } from "lucide-react";
+
+import { Server, Shield } from 'lucide-react';
 
 const EmptyServerState = () => {
   return (
@@ -8,8 +9,8 @@ const EmptyServerState = () => {
       <p className="text-trioguard-dark/70 mb-6">
         Choose a server from the sidebar to configure TrioGuard
       </p>
-      <a
-        href="/#invite"
+      <a 
+        href="/#invite" 
         className="inline-flex items-center text-trioguard hover:underline"
       >
         <Shield size={16} className="mr-2" />
