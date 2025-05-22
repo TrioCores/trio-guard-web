@@ -1,10 +1,10 @@
-
-import { useState } from 'react';
+import { useState } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { toast } from "@/hooks/use-toast";
-import ServerHeader from './ServerHeader';
-import GeneralSettings from './settings/GeneralSettings';
-import ModerationSettings from './settings/ModerationSettings';
-import WelcomeSettings from './settings/WelcomeSettings';
+import ServerHeader from "./ServerHeader";
+import GeneralSettings from "./settings/GeneralSettings";
+import ModerationSettings from "./settings/ModerationSettings";
+import WelcomeSettings from "./settings/WelcomeSettings";
 
 interface Guild {
   id: string;
@@ -26,15 +26,19 @@ interface BotSettings {
 interface ServerSettingsProps {
   guild: Guild;
   settings: BotSettings;
-  setSettings: (settings: BotSettings) => void;
+  setSettings: Dispatch<SetStateAction<BotSettings>>; // ✅ Korrekt type
 }
 
-const ServerSettings = ({ guild, settings, setSettings }: ServerSettingsProps) => {
+const ServerSettings = ({
+  guild,
+  settings,
+  setSettings,
+}: ServerSettingsProps) => {
   const updateSetting = (key: string, value: any) => {
-    setSettings({
-      ...settings,
-      [key]: value
-    });
+    setSettings((prevSettings) => ({
+      ...prevSettings,
+      [key]: value,
+    }));
   };
 
   const saveSettings = async () => {
@@ -42,7 +46,7 @@ const ServerSettings = ({ guild, settings, setSettings }: ServerSettingsProps) =
       title: "Saving settings...",
       description: "Your changes are being saved",
     });
-    
+
     // Simulate API call
     setTimeout(() => {
       toast({
@@ -55,29 +59,23 @@ const ServerSettings = ({ guild, settings, setSettings }: ServerSettingsProps) =
   return (
     <div className="space-y-6">
       <ServerHeader serverName={guild.name} serverId={guild.id} />
-      
-      <GeneralSettings 
-        commandPrefix={settings.commandPrefix} 
+
+      <GeneralSettings
+        commandPrefix={settings.commandPrefix}
         onUpdate={updateSetting}
       />
-      
-      <ModerationSettings 
-        autoMod={settings.autoMod} 
-        onUpdate={updateSetting}
-      />
-      
-      <WelcomeSettings 
+
+      <ModerationSettings autoMod={settings.autoMod} onUpdate={updateSetting} />
+
+      <WelcomeSettings
         welcomeMessages={settings.welcomeMessages}
         welcomeChannel={settings.welcomeChannel}
         welcomeMessage={settings.welcomeMessage}
         onUpdate={updateSetting}
       />
-      
+
       <div className="flex justify-end">
-        <button 
-          onClick={saveSettings}
-          className="btn-primary px-8"
-        >
+        <button onClick={saveSettings} className="btn-primary px-8">
           Save Changes
         </button>
       </div>
