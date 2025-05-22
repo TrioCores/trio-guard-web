@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dispatch, SetStateAction } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -20,13 +21,20 @@ interface BotSettings {
   welcomeChannel: string;
   welcomeMessage: string;
   commandPrefix: string;
+  // Add missing properties that exist in mockSettings
+  logChannel: string;
+  enableWarnings: boolean;
+  maxWarnings: number;
+  muteRole: string;
+  moderationRoles: string[];
+  customCommands: Array<{ name: string; response: string }>;
   [key: string]: any;
 }
 
 interface ServerSettingsProps {
   guild: Guild;
   settings: BotSettings;
-  setSettings: Dispatch<SetStateAction<BotSettings>>; // ✅ Korrekt type
+  setSettings: Dispatch<SetStateAction<BotSettings>>;
 }
 
 const ServerSettings = ({
