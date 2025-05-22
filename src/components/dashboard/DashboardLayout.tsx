@@ -11,6 +11,10 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ onLogout, children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
 
+  const handleLogout = () => {
+    onLogout();
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-white shadow-sm py-4">
@@ -19,7 +23,7 @@ const DashboardLayout = ({ onLogout, children }: DashboardLayoutProps) => {
             <Logo />
           </div>
           <button 
-            onClick={onLogout} 
+            onClick={handleLogout} 
             className="flex items-center text-trioguard-dark hover:text-trioguard transition-colors"
           >
             <LogOut size={20} className="mr-2" />
