@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dispatch, SetStateAction } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -33,19 +34,28 @@ interface BotSettings {
 interface ServerSettingsProps {
   guild: Guild;
   settings: BotSettings;
-  setSettings: Dispatch<SetStateAction<BotSettings>>;
+  onUpdate?: (key: string, value: any) => void;  // Make onUpdate optional
+  setSettings?: Dispatch<SetStateAction<BotSettings>>;  // Keep setSettings for backward compatibility
 }
 
 const ServerSettings = ({
   guild,
   settings,
   setSettings,
+  onUpdate,
 }: ServerSettingsProps) => {
+  // Internal update method that works with either prop pattern
   const updateSetting = (key: string, value: any) => {
-    setSettings((prevSettings) => ({
-      ...prevSettings,
-      [key]: value,
-    }));
+    if (onUpdate) {
+      // Use onUpdate if provided
+      onUpdate(key, value);
+    } else if (setSettings) {
+      // Fall back to setSettings if available
+      setSettings((prevSettings) => ({
+        ...prevSettings,
+        [key]: value,
+      }));
+    }
   };
 
   const saveSettings = async () => {
