@@ -1,6 +1,11 @@
+
 import { Server, Shield } from "lucide-react";
 
-const EmptyServerState = () => {
+interface EmptyServerStateProps {
+  botInviteLink?: string;
+}
+
+const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
   return (
     <div className="bg-white rounded-xl shadow-sm p-8 text-center">
       <Server size={48} className="mx-auto text-trioguard-dark/40 mb-4" />
@@ -9,11 +14,13 @@ const EmptyServerState = () => {
         Choose a server from the sidebar to configure TrioGuard
       </p>
       <a
-        href="/#invite"
-        className="inline-flex items-center text-trioguard hover:underline"
+        href={botInviteLink || "#invite"}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center bg-trioguard hover:bg-trioguard/90 text-white py-2 px-4 rounded-md transition-colors"
       >
         <Shield size={16} className="mr-2" />
-        <span>Need to add TrioGuard to a server?</span>
+        <span>Invite TrioGuard to a Server</span>
       </a>
     </div>
   );

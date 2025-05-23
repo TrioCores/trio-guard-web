@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchServers, fetchBotSettings, updateBotSettings } from '@/lib/server';
 
 // Dashboard components
 import AuthTemplate from '../components/dashboard/AuthTemplate';
@@ -11,56 +13,16 @@ import ServerList from '../components/dashboard/ServerList';
 import SettingsNav from '../components/dashboard/SettingsNav';
 import EmptyServerState from '../components/dashboard/EmptyServerState';
 import ServerSettings from '../components/dashboard/ServerSettings';
-
-// Mock data
-const mockGuilds = [
-  {
-    id: '1234567890123456',
-    name: 'Gaming Community',
-    icon: 'https://source.unsplash.com/random/100x100?gaming',
-    memberCount: 1250,
-    botInstalled: true
-  },
-  {
-    id: '2345678901234567',
-    name: 'Tech Support',
-    icon: 'https://source.unsplash.com/random/100x100?tech',
-    memberCount: 845,
-    botInstalled: true
-  },
-  {
-    id: '3456789012345678',
-    name: 'Art Showcase',
-    icon: 'https://source.unsplash.com/random/100x100?art',
-    memberCount: 623,
-    botInstalled: false
-  }
-];
-
-const mockSettings = {
-  autoMod: true,
-  welcomeMessages: true,
-  welcomeChannel: 'welcome',
-  welcomeMessage: 'Welcome to the server, {user}! Please read our rules in #rules.',
-  logChannel: 'mod-logs',
-  enableWarnings: true,
-  maxWarnings: 3,
-  muteRole: 'Muted',
-  moderationRoles: ['Admin', 'Moderator'],
-  commandPrefix: '-',
-  customCommands: [
-    { name: 'serverinfo', response: 'This server was created on {server.creationDate}.' },
-    { name: 'ping', response: 'Pong! Bot latency: {bot.ping}ms' }
-  ]
-};
+import RoleManagement from '../components/dashboard/settings/RoleManagement';
+import LoggingSettings from '../components/dashboard/settings/LoggingSettings';
 
 const Dashboard = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
-  const [settings, setSettings] = useState(mockSettings);
-  const [guilds, setGuilds] = useState(mockGuilds);
+  const [activeSettingTab, setActiveSettingTab] = useState<string>('general');
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Check auth on component mount
   useEffect(() => {
@@ -86,6 +48,57 @@ const Dashboard = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Fetch servers using React Query
+  const { 
+    data: guilds = [], 
+    isLoading: isLoadingServers 
+  } = useQuery({
+    queryKey: ['servers'],
+    queryFn: fetchServers,
+    enabled: isAuthenticated
+  });
+
+  // Fetch settings for the selected server
+  const { 
+    data: settings,
+    isLoading: isLoadingSettings
+  } = useQuery({
+    queryKey: ['botSettings', selectedGuild],
+    queryFn: () => fetchBotSettings(selectedGuild!),
+    enabled: !!selectedGuild && isAuthenticated
+  });
+
+  // Update settings mutation
+  const updateSettingsMutation = useMutation({
+    mutationFn: ({ serverId, settings }: { serverId: string, settings: any }) => 
+      updateBotSettings(serverId, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['botSettings', selectedGuild] });
+      toast({
+        title: "Settings saved",
+        description: "Bot settings have been updated successfully"
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive"
+      });
+      console.error('Error updating settings:', error);
+    }
+  });
+
+  // Handle setting updates
+  const handleSettingsUpdate = (key: string, value: any) => {
+    if (!selectedGuild || !settings) return;
+    
+    updateSettingsMutation.mutate({
+      serverId: selectedGuild,
+      settings: { [key]: value, updated_at: new Date().toISOString() }
+    });
+  };
 
   // Handle login
   const handleLogin = () => {
@@ -145,22 +158,51 @@ const Dashboard = () => {
               guilds={guilds} 
               selectedGuild={selectedGuild}
               setSelectedGuild={setSelectedGuild}
+              isLoading={isLoadingServers}
             />
           </div>
 
-          {selectedGuild && <SettingsNav />}
+          {selectedGuild && (
+            <SettingsNav 
+              activeTab={activeSettingTab}
+              setActiveTab={setActiveSettingTab}
+            />
+          )}
         </aside>
 
         {/* Main content */}
         <div className="flex-grow">
-          {selectedGuild && currentGuild ? (
-            <ServerSettings 
-              guild={currentGuild}
-              settings={settings}
-              setSettings={setSettings}
-            />
+          {isLoadingSettings && selectedGuild ? (
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+              <div className="animate-pulse-soft inline-flex items-center justify-center p-4 bg-white rounded-full shadow-md mb-4">
+                <div className="w-8 h-8 text-trioguard">Loading...</div>
+              </div>
+              <h2 className="text-xl font-medium text-trioguard-dark">Loading settings...</h2>
+            </div>
+          ) : selectedGuild && currentGuild && settings ? (
+            <>
+              {activeSettingTab === 'general' && (
+                <ServerSettings 
+                  guild={currentGuild}
+                  settings={settings}
+                  onUpdate={handleSettingsUpdate}
+                />
+              )}
+              {activeSettingTab === 'roles' && (
+                <RoleManagement 
+                  serverId={selectedGuild}
+                />
+              )}
+              {activeSettingTab === 'logging' && (
+                <LoggingSettings 
+                  serverId={selectedGuild}
+                  logChannel={settings.log_channel}
+                  onUpdate={handleSettingsUpdate}
+                />
+              )}
+            </>
           ) : (
-            <EmptyServerState />
+            <EmptyServerState botInviteLink="https://discord.com/oauth2/authorize?client_id=1372175162807418951&permissions=8&integration_type=0&scope=bot+applications.commands" />
           )}
         </div>
       </div>

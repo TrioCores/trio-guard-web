@@ -9,6 +9,53 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bot_settings: {
+        Row: {
+          auto_mod: boolean | null
+          command_prefix: string | null
+          created_at: string
+          log_channel: string | null
+          moderation_enabled: boolean | null
+          server_id: string
+          updated_at: string
+          welcome_channel: string | null
+          welcome_enabled: boolean | null
+          welcome_message: string | null
+        }
+        Insert: {
+          auto_mod?: boolean | null
+          command_prefix?: string | null
+          created_at?: string
+          log_channel?: string | null
+          moderation_enabled?: boolean | null
+          server_id: string
+          updated_at?: string
+          welcome_channel?: string | null
+          welcome_enabled?: boolean | null
+          welcome_message?: string | null
+        }
+        Update: {
+          auto_mod?: boolean | null
+          command_prefix?: string | null
+          created_at?: string
+          log_channel?: string | null
+          moderation_enabled?: boolean | null
+          server_id?: string
+          updated_at?: string
+          welcome_channel?: string | null
+          welcome_enabled?: boolean | null
+          welcome_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_settings_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: true
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -33,6 +80,62 @@ export type Database = {
           id?: string
           updated_at?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      server_members: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          server_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: string
+          server_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          server_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "server_members_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "servers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      servers: {
+        Row: {
+          icon: string | null
+          id: string
+          joined_at: string
+          name: string
+          owner_id: string
+        }
+        Insert: {
+          icon?: string | null
+          id: string
+          joined_at?: string
+          name: string
+          owner_id: string
+        }
+        Update: {
+          icon?: string | null
+          id?: string
+          joined_at?: string
+          name?: string
+          owner_id?: string
         }
         Relationships: []
       }
