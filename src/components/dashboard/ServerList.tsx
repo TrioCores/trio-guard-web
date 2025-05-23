@@ -35,7 +35,7 @@ const ServerList = ({
 
   if (guilds.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-4">
+      <div className="bg-white rounded-xl shadow-sm p-4 animate-fade-in-up">
         <h2 className="font-medium mb-4">Your Servers</h2>
         <p className="text-center py-4 text-trioguard-dark/60">
           No servers found. Invite the bot to your Discord server to get started.
@@ -45,20 +45,20 @@ const ServerList = ({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4">
+    <div className="bg-white rounded-xl shadow-sm p-4 animate-fade-in-up">
       <h2 className="font-medium mb-4">Your Servers</h2>
       <div className="space-y-2">
-        {guilds.map((guild) => (
+        {guilds.map((guild, index) => (
           <div
             key={guild.id}
             onClick={() => setSelectedGuild(guild.id)}
-            className={`p-3 rounded-lg flex items-center cursor-pointer transition-colors ${
-              selectedGuild === guild.id
-                ? "bg-trioguard/10 border border-trioguard/30"
-                : "hover:bg-gray-100"
-            }`}
+            className={`p-3 rounded-lg flex items-center cursor-pointer transition-all duration-300 animate-fade-in-up`}
+            style={{ animationDelay: `${index * 75}ms` }}
+            data-guild-id={guild.id}
           >
-            <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+            <div className={`flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-gray-200 transition-transform ${
+              selectedGuild === guild.id ? "scale-110" : ""
+            }`}>
               {guild.icon ? (
                 <img
                   src={guild.icon}
@@ -71,8 +71,15 @@ const ServerList = ({
                 </div>
               )}
             </div>
-            <div className="ml-3 flex-grow overflow-hidden">
-              <p className="font-medium truncate">{guild.name}</p>
+            <div className={`ml-3 flex-grow overflow-hidden transition-all duration-300 ${
+              selectedGuild === guild.id ? "text-trioguard font-medium" : ""
+            }`}>
+              <p className="truncate">{guild.name}</p>
+            </div>
+            <div className={`transform transition-all duration-300 ${
+              selectedGuild === guild.id ? "scale-100 opacity-100" : "scale-0 opacity-0" 
+            }`}>
+              <div className="w-2 h-2 rounded-full bg-trioguard"></div>
             </div>
           </div>
         ))}
