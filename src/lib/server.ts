@@ -1,5 +1,5 @@
-// src/lib/servers.ts
-import { supabase } from './supabaseClient';
+import { supabase } from "@/integrations/supabase/client";
+
 
 export async function fetchServers() {
   try {
