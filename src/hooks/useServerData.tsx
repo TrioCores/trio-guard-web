@@ -1,62 +1,58 @@
-
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
-import { fetchServers, fetchBotSettings, updateBotSettings } from '@/lib/server';
+import {
+  fetchOwnedServersForUser, // <-- brug den nye funktion som henter ejede servers
+  fetchBotSettings,
+  updateBotSettings,
+} from "@/lib/server";
 
 export const useServerData = (isAuthenticated: boolean) => {
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
-  const [activeSettingTab, setActiveSettingTab] = useState<string>('general');
+  const [activeSettingTab, setActiveSettingTab] = useState<string>("general");
   const queryClient = useQueryClient();
 
-  // Fetch servers using React Query
-  const { 
-    data: guilds = [], 
-    isLoading: isLoadingServers 
-  } = useQuery({
-    queryKey: ['servers'],
-    queryFn: fetchServers,
-    enabled: isAuthenticated
+  // Hent kun ejede servers for den aktuelle bruger
+  const { data: guilds = [], isLoading: isLoadingServers } = useQuery<any[]>({
+    queryKey: ["servers"],
+    queryFn: fetchOwnedServersForUser, // <-- Opdateret til at hente ejede servers
+    enabled: isAuthenticated,
   });
 
-  // Fetch settings for the selected server
-  const { 
-    data: settings,
-    isLoading: isLoadingSettings
-  } = useQuery({
-    queryKey: ['botSettings', selectedGuild],
+  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["botSettings", selectedGuild],
     queryFn: () => fetchBotSettings(selectedGuild!),
-    enabled: !!selectedGuild && isAuthenticated
+    enabled: !!selectedGuild && isAuthenticated,
   });
 
-  // Update settings mutation
   const updateSettingsMutation = useMutation({
-    mutationFn: ({ serverId, settings }: { serverId: string, settings: any }) => 
+    mutationFn: ({ serverId, settings }: { serverId: string; settings: any }) =>
       updateBotSettings(serverId, settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['botSettings', selectedGuild] });
+      queryClient.invalidateQueries({
+        queryKey: ["botSettings", selectedGuild],
+      });
       toast({
         title: "Settings saved",
-        description: "Bot settings have been updated successfully"
+        description: "Bot settings have been updated successfully",
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
-      console.error('Error updating settings:', error);
-    }
+      console.error("Error updating settings:", error);
+    },
   });
 
-  // Handle setting updates
   const handleSettingsUpdate = (key: string, value: any) => {
     if (!selectedGuild || !settings) return;
-    
+
     updateSettingsMutation.mutate({
       serverId: selectedGuild,
-      settings: { [key]: value, updated_at: new Date().toISOString() }
+      settings: { [key]: value, updated_at: new Date().toISOString() },
     });
   };
 
@@ -70,8 +66,8 @@ export const useServerData = (isAuthenticated: boolean) => {
     isLoadingServers,
     isLoadingSettings,
     handleSettingsUpdate,
-    currentGuild: selectedGuild 
-      ? guilds.find((guild: any) => guild.id === selectedGuild) 
-      : null
+    currentGuild: selectedGuild
+      ? guilds.find((guild: any) => guild.id === selectedGuild)
+      : null,
   };
 };
