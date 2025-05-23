@@ -1,7 +1,11 @@
+
 import { ArrowRight, ShieldCheck, MessageCircle } from "lucide-react";
 import Logo from "./Logo";
 
 const InviteSection = () => {
+  // Use the actual bot invite link for consistency
+  const botInviteLink = "https://discord.com/oauth2/authorize?client_id=1372175162807418951&permissions=8&integration_type=0&scope=bot+applications.commands";
+
   return (
     <section
       id="invite"
@@ -29,7 +33,7 @@ const InviteSection = () => {
             style={{ animationDelay: "0.2s" }}
           >
             <a
-              href="https://discord.com/api/oauth2/authorize?client_id=123456789&permissions=8&scope=bot"
+              href={botInviteLink}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-white text-trioguard hover:bg-white/90 font-medium px-8 py-4 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center justify-center hover:scale-105 duration-300"

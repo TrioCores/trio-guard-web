@@ -1,14 +1,22 @@
-
 // src/lib/servers.ts
 import { supabase } from './supabaseClient';
 
 export async function fetchServers() {
-  const { data, error } = await supabase.from('servers').select('*');
-  if (error) {
-    console.error('Error fetching servers:', error);
+  try {
+    console.log('Fetching servers...');
+    const { data, error } = await supabase.from('servers').select('*');
+    
+    if (error) {
+      console.error('Error fetching servers:', error);
+      return [];
+    }
+    
+    console.log('Servers fetched:', data);
+    return data || [];
+  } catch (error) {
+    console.error('Exception while fetching servers:', error);
     return [];
   }
-  return data;
 }
 
 export async function addServer(name: string, icon: string, id: string, ownerId: string) {
