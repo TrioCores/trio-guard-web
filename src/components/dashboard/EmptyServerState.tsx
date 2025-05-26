@@ -1,7 +1,9 @@
 
-import { Server, Shield, ExternalLink } from "lucide-react";
+import { Server, Shield, ExternalLink, Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { addTestServer } from "@/lib/server";
+import { toast } from "@/hooks/use-toast";
 
 interface EmptyServerStateProps {
   botInviteLink?: string;
@@ -9,8 +11,38 @@ interface EmptyServerStateProps {
 
 const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
   const [isHovering, setIsHovering] = useState(false);
+  const [isAddingTest, setIsAddingTest] = useState(false);
   const defaultInviteLink = "https://discord.com/oauth2/authorize?client_id=1372175162807418951&permissions=8&scope=bot+applications.commands";
   const inviteUrl = botInviteLink || defaultInviteLink;
+  
+  const handleAddTestServer = async () => {
+    setIsAddingTest(true);
+    try {
+      const result = await addTestServer();
+      if (result) {
+        toast({
+          title: "Test server added",
+          description: "A test server has been added to your list",
+        });
+        window.location.reload(); // Refresh to show the new server
+      } else {
+        toast({
+          title: "Failed to add test server",
+          description: "There was an error adding the test server",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error adding test server:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingTest(false);
+    }
+  };
   
   return (
     <div className="bg-white rounded-xl shadow-sm p-8 text-center animate-fade-in-up">
@@ -23,7 +55,7 @@ const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
       </div>
       <h2 className="text-xl font-bold mb-2">No Servers Found</h2>
       <p className="text-trioguard-dark/70 mb-6">
-        You need to invite TrioGuard to your Discord server to get started
+        You need to invite TrioGuard to your Discord server and make sure you're logged in with the correct Discord account
       </p>
       
       <div className="space-y-4">
@@ -44,17 +76,30 @@ const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
           <h3 className="font-medium mb-2">Troubleshooting steps:</h3>
           <ul className="text-left space-y-1.5">
             <li>✓ Make sure you're logged in with the correct Discord account</li>
-            <li>✓ Ensure you've granted the bot proper permissions</li>
-            <li>✓ Try refreshing the page after inviting the bot</li>
-            <li>✓ Check that you have 'Manage Server' permissions on Discord</li>
+            <li>✓ Ensure you OWN the Discord server (not just admin)</li>
+            <li>✓ Try logging out and logging back in</li>
+            <li>✓ Check browser console for any error messages</li>
           </ul>
-          <Button
-            onClick={() => window.location.reload()}
-            variant="outline"
-            className="mt-4 w-full"
-          >
-            Refresh Page
-          </Button>
+          
+          <div className="flex flex-col gap-2 mt-4">
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="w-full"
+            >
+              Refresh Page
+            </Button>
+            
+            <Button
+              onClick={handleAddTestServer}
+              variant="outline"
+              className="w-full"
+              disabled={isAddingTest}
+            >
+              <Plus size={16} className="mr-2" />
+              {isAddingTest ? 'Adding...' : 'Add Test Server (Debug)'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

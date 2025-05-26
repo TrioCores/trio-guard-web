@@ -1,8 +1,9 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import {
-  fetchOwnedServersForUser, // <-- brug den nye funktion som henter ejede servers
+  fetchOwnedServersForUser,
   fetchBotSettings,
   updateBotSettings,
 } from "@/lib/server";
@@ -12,12 +13,47 @@ export const useServerData = (isAuthenticated: boolean) => {
   const [activeSettingTab, setActiveSettingTab] = useState<string>("general");
   const queryClient = useQueryClient();
 
-  // Hent kun ejede servers for den aktuelle bruger
-  const { data: guilds = [], isLoading: isLoadingServers } = useQuery<any[]>({
+  // Add effect to log authentication status
+  useEffect(() => {
+    console.log('useServerData - Authentication status:', isAuthenticated);
+  }, [isAuthenticated]);
+
+  // Fetch owned servers for the current user
+  const { data: guilds = [], isLoading: isLoadingServers, error: serverError } = useQuery<any[]>({
     queryKey: ["servers"],
-    queryFn: fetchOwnedServersForUser, // <-- Opdateret til at hente ejede servers
+    queryFn: async () => {
+      console.log('Fetching servers - authentication status:', isAuthenticated);
+      if (!isAuthenticated) {
+        console.log('User not authenticated, skipping server fetch');
+        return [];
+      }
+      
+      try {
+        const servers = await fetchOwnedServersForUser();
+        console.log('Servers fetched successfully:', servers);
+        return servers;
+      } catch (error) {
+        console.error('Error in server fetch query:', error);
+        toast({
+          title: "Error fetching servers",
+          description: "There was an error loading your Discord servers",
+          variant: "destructive",
+        });
+        return [];
+      }
+    },
     enabled: isAuthenticated,
+    retry: 2,
+    retryDelay: 1000,
   });
+
+  // Log server fetch results
+  useEffect(() => {
+    if (serverError) {
+      console.error('Server fetch error:', serverError);
+    }
+    console.log('Current guilds state:', guilds);
+  }, [guilds, serverError]);
 
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["botSettings", selectedGuild],
