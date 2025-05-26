@@ -145,7 +145,7 @@ export const forceDiscordReauth = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
-        scopes: 'identify guilds',
+        scopes: 'identify guilds email',
         redirectTo: window.location.origin + '/dashboard'
       }
     });

@@ -1,4 +1,4 @@
-import { supabase, getCurrentSession, getValidDiscordToken } from "@/integrations/supabase/client";
+import { supabase, getCurrentSession, getValidDiscordToken, forceDiscordReauth  } from "@/integrations/supabase/client";
 
 export async function fetchServers() {
   try {
