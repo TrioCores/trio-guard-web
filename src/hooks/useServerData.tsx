@@ -78,13 +78,6 @@ export const useServerData = (isAuthenticated: boolean) => {
           title: errorTitle,
           description: errorMessage,
           variant: "destructive",
-          action: error.message?.includes('authentication') ? {
-            altText: "Log out and log back in",
-            onClick: () => {
-              // This would trigger a logout - you could implement this
-              window.location.href = '/';
-            }
-          } : undefined
         });
         
         return [];
