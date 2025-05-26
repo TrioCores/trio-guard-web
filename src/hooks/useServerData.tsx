@@ -33,7 +33,7 @@ export const useServerData = (isAuthenticated: boolean) => {
     console.log('useServerData - Authentication status:', isAuthenticated);
   }, [isAuthenticated]);
 
-  // Fetch owned servers for the current user with enhanced retry logic
+  // Fetch owned servers for the current user with improved error handling
   const { data: guilds = [], isLoading: isLoadingServers, error: serverError, refetch: refetchServers } = useQuery<any[]>({
     queryKey: ["servers"],
     queryFn: async () => {
@@ -63,16 +63,14 @@ export const useServerData = (isAuthenticated: boolean) => {
         let errorMessage = "There was an error loading your Discord servers";
         let errorTitle = "Error fetching servers";
         
-        if (error.message?.includes('authentication') || error.message?.includes('token')) {
-          errorTitle = "Discord Authentication Issue";
-          
-          if (error.message?.includes('could not be refreshed')) {
-            errorMessage = "Your Discord session has expired. Please log out and log back in to reconnect your Discord account.";
-          } else {
-            errorMessage = error.message;
-          }
-          
+        if (error.message?.includes('log out and log back in')) {
+          errorTitle = "Discord Authentication Required";
+          errorMessage = "Your Discord session has expired. Please log out and log back in to reconnect your Discord account.";
           // Update Discord status to reflect the authentication issue
+          setDiscordStatus('no_token');
+        } else if (error.message?.includes('authentication') || error.message?.includes('token')) {
+          errorTitle = "Discord Authentication Issue";
+          errorMessage = error.message;
           setDiscordStatus('no_token');
         } else if (error.message?.includes('rate limit')) {
           errorMessage = "Discord API rate limit reached. Please try again in a few minutes.";
@@ -91,18 +89,20 @@ export const useServerData = (isAuthenticated: boolean) => {
     retry: (failureCount, error) => {
       // Don't retry on authentication errors that require user intervention
       if (error?.message?.includes('log out and log back in') || 
-          error?.message?.includes('could not be refreshed') ||
+          error?.message?.includes('expired') ||
           error?.message?.includes('401')) {
         return false;
       }
-      // Allow retries for other errors, but limit to 2 attempts
-      return failureCount < 2;
+      // Only retry once for other errors to prevent spam
+      return failureCount < 1;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    // Refetch every 5 minutes to keep tokens fresh
-    refetchInterval: 5 * 60 * 1000,
+    retryDelay: 2000, // Fixed delay to prevent rapid retries
+    // Refetch every 10 minutes to keep tokens fresh (increased from 5 minutes)
+    refetchInterval: 10 * 60 * 1000,
     // Refetch when window becomes focused to handle token expiration
     refetchOnWindowFocus: true,
+    // Don't refetch on mount if data exists and is less than 5 minutes old
+    staleTime: 5 * 60 * 1000,
   });
 
   // Log server fetch results

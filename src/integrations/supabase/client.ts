@@ -19,35 +19,52 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
 });
 
+// Enhanced function to get current session with fresh token check
+export const getCurrentSession = async () => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('Error getting session:', error);
+      return null;
+    }
+    
+    return session;
+  } catch (error) {
+    console.error('Exception getting session:', error);
+    return null;
+  }
+};
+
 // Enhanced function to check if Discord token is actually valid by testing it against Discord API
 export const checkDiscordToken = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    console.log('No session found');
-    return false;
-  }
-
-  // Check if we have Discord provider token and if it's not expired
-  const hasDiscordToken = !!(session.provider_token && session.provider_refresh_token);
-  const tokenNotExpired = session.expires_at ? (session.expires_at * 1000) > Date.now() : false;
-  
-  console.log('Discord token check:', {
-    hasToken: hasDiscordToken,
-    notExpired: tokenNotExpired,
-    provider: session.user?.app_metadata?.provider,
-    expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null,
-    providerToken: !!session.provider_token,
-    refreshToken: !!session.provider_refresh_token
-  });
-
-  // If we don't have the basic requirements, return false
-  if (!hasDiscordToken || !tokenNotExpired) {
-    return false;
-  }
-
-  // Test the token against Discord API to see if it's actually valid
   try {
+    const session = await getCurrentSession();
+    
+    if (!session) {
+      console.log('No session found');
+      return false;
+    }
+
+    // Check if we have Discord provider token and if it's not expired
+    const hasDiscordToken = !!(session.provider_token && session.provider_refresh_token);
+    const tokenNotExpired = session.expires_at ? (session.expires_at * 1000) > Date.now() : false;
+    
+    console.log('Discord token check:', {
+      hasToken: hasDiscordToken,
+      notExpired: tokenNotExpired,
+      provider: session.user?.app_metadata?.provider,
+      expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null,
+      providerToken: !!session.provider_token,
+      refreshToken: !!session.provider_refresh_token
+    });
+
+    // If we don't have the basic requirements, return false
+    if (!hasDiscordToken || !tokenNotExpired) {
+      return false;
+    }
+
+    // Test the token against Discord API to see if it's actually valid
     console.log('Testing Discord token against API...');
     const response = await fetch('https://discord.com/api/users/@me', {
       headers: {
@@ -69,19 +86,28 @@ export const checkDiscordToken = async () => {
   }
 };
 
-// Enhanced function to refresh Discord token
+// Enhanced function to refresh Discord token with better error handling
 export const refreshDiscordToken = async () => {
   try {
     console.log('Attempting to refresh Discord token...');
     
-    // First try the standard refresh
-    const { data, error } = await supabase.auth.refreshSession();
+    // Get current session first
+    const currentSession = await getCurrentSession();
+    if (!currentSession?.refresh_token) {
+      console.warn('No refresh token available');
+      return false;
+    }
+    
+    // Try the standard refresh
+    const { data, error } = await supabase.auth.refreshSession(currentSession);
     
     if (error) {
       console.error('Error refreshing session:', error);
       
       // If refresh fails, the user needs to re-authenticate
-      if (error.message?.includes('Invalid refresh token') || error.message?.includes('refresh_token_not_found')) {
+      if (error.message?.includes('Invalid refresh token') || 
+          error.message?.includes('refresh_token_not_found') ||
+          error.message?.includes('invalid_grant')) {
         console.warn('Refresh token is invalid - user needs to re-authenticate');
         return false;
       }
@@ -133,5 +159,33 @@ export const forceDiscordReauth = async () => {
   } catch (error) {
     console.error('Exception during Discord re-auth:', error);
     return false;
+  }
+};
+
+// Function to get valid Discord token with automatic refresh
+export const getValidDiscordToken = async () => {
+  try {
+    // First check if current token is valid
+    const isCurrentValid = await checkDiscordToken();
+    
+    if (isCurrentValid) {
+      const session = await getCurrentSession();
+      return session?.provider_token || null;
+    }
+    
+    // Try to refresh if current token is invalid
+    console.log('Current token invalid, attempting refresh...');
+    const refreshSuccess = await refreshDiscordToken();
+    
+    if (refreshSuccess) {
+      const session = await getCurrentSession();
+      return session?.provider_token || null;
+    }
+    
+    console.log('Token refresh failed');
+    return null;
+  } catch (error) {
+    console.error('Error getting valid Discord token:', error);
+    return null;
   }
 };
