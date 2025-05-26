@@ -1,5 +1,4 @@
-
-import { supabase, checkDiscordToken, refreshDiscordToken } from "@/integrations/supabase/client";
+import { supabase, checkDiscordToken, refreshDiscordToken, forceDiscordReauth } from "@/integrations/supabase/client";
 
 export async function fetchServers() {
   try {
@@ -102,6 +101,8 @@ export async function updateBotSettings(serverId: string, settings: any) {
 
 // Enhanced Discord API interaction with better error handling
 async function fetchDiscordGuilds(accessToken: string) {
+  console.log('Attempting to fetch Discord guilds with token...');
+  
   const response = await fetch('https://discord.com/api/users/@me/guilds', {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -129,7 +130,9 @@ async function fetchDiscordGuilds(accessToken: string) {
     }
   }
 
-  return response.json();
+  const guilds = await response.json();
+  console.log('Successfully fetched Discord guilds:', guilds.length);
+  return guilds;
 }
 
 // Function to sync Discord servers to database with enhanced error handling
@@ -207,34 +210,54 @@ export async function fetchOwnedServersForUser() {
 
     // Check if we have a valid Discord access token
     const hasValidToken = await checkDiscordToken();
+    console.log('Has valid Discord token:', hasValidToken);
     
-    if (!hasValidToken) {
+    let accessToken = session.provider_token;
+
+    if (!hasValidToken || !accessToken) {
       console.warn('No valid Discord token found, attempting refresh...');
       const refreshed = await refreshDiscordToken();
       
-      if (!refreshed) {
-        console.error('Failed to refresh Discord token');
-        // Still try to fetch from database
-        return await fetchServersFromDatabase(userId);
+      if (refreshed) {
+        // Get fresh session after refresh
+        const { data: { session: freshSession } } = await supabase.auth.getSession();
+        accessToken = freshSession?.provider_token;
+        console.log('Token refreshed, new token available:', !!accessToken);
+      } else {
+        console.error('Failed to refresh Discord token - user needs to re-authenticate');
+        
+        // Try to fetch from database first as fallback
+        const dbServers = await fetchServersFromDatabase(userId);
+        if (dbServers.length > 0) {
+          console.log('Found servers in database, returning those');
+          return dbServers;
+        }
+        
+        // If no servers in DB either, suggest re-authentication
+        throw new Error('Discord authentication expired. Please log out and log back in to refresh your Discord connection.');
       }
     }
 
-    // Get fresh session after potential refresh
-    const { data: { session: freshSession } } = await supabase.auth.getSession();
-    const accessToken = freshSession?.provider_token;
-
     if (accessToken) {
-      console.log('Discord access token found, syncing servers...');
+      console.log('Discord access token available, syncing servers...');
       const syncResult = await syncDiscordServers(accessToken, userId);
       
       if (!syncResult.success) {
         console.warn('Failed to sync Discord servers:', syncResult.error);
-        // Fall back to database only
+        
+        // If sync failed due to token issues, try database fallback
+        if (syncResult.error?.includes('token') || syncResult.error?.includes('401')) {
+          const dbServers = await fetchServersFromDatabase(userId);
+          if (dbServers.length === 0) {
+            throw new Error('Discord authentication expired. Please log out and log back in to refresh your Discord connection.');
+          }
+          return dbServers;
+        }
       } else {
         console.log(`Successfully synced ${syncResult.syncedCount}/${syncResult.ownedCount} owned servers`);
       }
     } else {
-      console.warn('No Discord access token available after refresh');
+      console.warn('No Discord access token available after refresh attempt');
     }
 
     // Always fetch from database as final step
@@ -242,6 +265,12 @@ export async function fetchOwnedServersForUser() {
 
   } catch (error) {
     console.error('Exception in fetchOwnedServersForUser:', error);
+    
+    // Re-throw authentication errors so they can be handled properly by the UI
+    if (error.message?.includes('authentication') || error.message?.includes('token')) {
+      throw error;
+    }
+    
     return [];
   }
 }
@@ -319,12 +348,22 @@ export async function checkDiscordOAuthStatus() {
 
     const hasToken = await checkDiscordToken();
     if (!hasToken) {
-      return { status: 'no_token', message: 'No valid Discord token found' };
+      return { status: 'no_token', message: 'Discord token expired - please log out and log back in' };
     }
 
     return { status: 'valid', message: 'Discord OAuth is properly configured' };
   } catch (error) {
     console.error('Error checking Discord OAuth status:', error);
     return { status: 'error', message: error.message };
+  }
+}
+
+// Function to trigger Discord re-authentication
+export async function triggerDiscordReauth() {
+  try {
+    return await forceDiscordReauth();
+  } catch (error) {
+    console.error('Error triggering Discord re-auth:', error);
+    return false;
   }
 }

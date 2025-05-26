@@ -1,8 +1,9 @@
 
-import { Server, Shield, ExternalLink, Plus, AlertTriangle, RefreshCw } from "lucide-react";
+import { Server, Shield, ExternalLink, Plus, AlertTriangle, RefreshCw, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { addTestServer, checkDiscordOAuthStatus } from "@/lib/server";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 interface EmptyServerStateProps {
@@ -14,6 +15,7 @@ interface EmptyServerStateProps {
 const EmptyServerState = ({ botInviteLink, discordStatus, onRefresh }: EmptyServerStateProps) => {
   const [isHovering, setIsHovering] = useState(false);
   const [isAddingTest, setIsAddingTest] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [oauthStatus, setOauthStatus] = useState<any>(null);
   const defaultInviteLink = "https://discord.com/oauth2/authorize?client_id=1372175162807418951&permissions=8&scope=bot+applications.commands";
   const inviteUrl = botInviteLink || defaultInviteLink;
@@ -51,6 +53,28 @@ const EmptyServerState = ({ botInviteLink, discordStatus, onRefresh }: EmptyServ
     }
   };
 
+  const handleLogoutAndReauth = async () => {
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Logged out",
+        description: "Please log back in to refresh your Discord connection",
+      });
+      // Redirect to login
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to log out",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   const getStatusMessage = () => {
     if (!oauthStatus) return "Checking Discord connection...";
     
@@ -78,6 +102,8 @@ const EmptyServerState = ({ botInviteLink, discordStatus, onRefresh }: EmptyServ
         return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
     }
   };
+
+  const showTokenExpiredActions = oauthStatus?.status === 'no_token' || discordStatus === 'no_token';
   
   return (
     <div className="bg-white rounded-xl shadow-sm p-8 text-center animate-fade-in-up">
@@ -105,18 +131,36 @@ const EmptyServerState = ({ botInviteLink, discordStatus, onRefresh }: EmptyServ
       </p>
       
       <div className="space-y-4">
-        <a
-          href={inviteUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center bg-trioguard hover:bg-trioguard/90 text-white py-2 px-4 rounded-md transition-all duration-300 transform hover:scale-105 hover:shadow-md"
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
-        >
-          <Shield size={16} className={`mr-2 transition-all duration-300 ${isHovering ? 'rotate-12' : ''}`} />
-          <span>Invite TrioGuard to a Server</span>
-          <ExternalLink size={14} className="ml-1.5 opacity-70" />
-        </a>
+        {showTokenExpiredActions ? (
+          <div className="space-y-3">
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800 mb-3">
+                Your Discord authentication has expired. Please log out and log back in to refresh your connection.
+              </p>
+              <Button
+                onClick={handleLogoutAndReauth}
+                disabled={isLoggingOut}
+                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                <LogOut size={16} className="mr-2" />
+                {isLoggingOut ? 'Logging out...' : 'Log Out & Re-authenticate'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <a
+            href={inviteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center bg-trioguard hover:bg-trioguard/90 text-white py-2 px-4 rounded-md transition-all duration-300 transform hover:scale-105 hover:shadow-md"
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
+          >
+            <Shield size={16} className={`mr-2 transition-all duration-300 ${isHovering ? 'rotate-12' : ''}`} />
+            <span>Invite TrioGuard to a Server</span>
+            <ExternalLink size={14} className="ml-1.5 opacity-70" />
+          </a>
+        )}
         
         <div className="mt-6 text-sm text-gray-500 max-w-md mx-auto">
           <h3 className="font-medium mb-2">Troubleshooting steps:</h3>
@@ -128,7 +172,7 @@ const EmptyServerState = ({ botInviteLink, discordStatus, onRefresh }: EmptyServ
           </ul>
           
           <div className="flex flex-col gap-2 mt-4">
-            {onRefresh && (
+            {onRefresh && !showTokenExpiredActions && (
               <Button
                 onClick={onRefresh}
                 variant="outline"
@@ -139,13 +183,15 @@ const EmptyServerState = ({ botInviteLink, discordStatus, onRefresh }: EmptyServ
               </Button>
             )}
             
-            <Button
-              onClick={() => window.location.reload()}
-              variant="outline"
-              className="w-full"
-            >
-              Refresh Page
-            </Button>
+            {!showTokenExpiredActions && (
+              <Button
+                onClick={() => window.location.reload()}
+                variant="outline"
+                className="w-full"
+              >
+                Refresh Page
+              </Button>
+            )}
             
             <Button
               onClick={handleAddTestServer}

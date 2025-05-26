@@ -62,24 +62,38 @@ export const useServerData = (isAuthenticated: boolean) => {
         
         // Show specific error messages based on the type of error
         let errorMessage = "There was an error loading your Discord servers";
-        if (error.message?.includes('token')) {
-          errorMessage = "Discord authentication expired. Please log out and log back in.";
+        let errorTitle = "Error fetching servers";
+        
+        if (error.message?.includes('authentication') || error.message?.includes('token')) {
+          errorTitle = "Discord Authentication Required";
+          errorMessage = error.message;
+          
+          // Update Discord status to reflect the authentication issue
+          setDiscordStatus('no_token');
         } else if (error.message?.includes('rate limit')) {
           errorMessage = "Discord API rate limit reached. Please try again in a few minutes.";
         }
         
         toast({
-          title: "Error fetching servers",
+          title: errorTitle,
           description: errorMessage,
           variant: "destructive",
+          action: error.message?.includes('authentication') ? {
+            altText: "Log out and log back in",
+            onClick: () => {
+              // This would trigger a logout - you could implement this
+              window.location.href = '/';
+            }
+          } : undefined
         });
+        
         return [];
       }
     },
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
       // Don't retry on authentication errors
-      if (error?.message?.includes('token') || error?.message?.includes('401')) {
+      if (error?.message?.includes('token') || error?.message?.includes('401') || error?.message?.includes('authentication')) {
         return false;
       }
       return failureCount < 2;

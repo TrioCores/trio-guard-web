@@ -36,26 +36,68 @@ export const checkDiscordToken = async () => {
     hasToken: hasDiscordToken,
     notExpired: tokenNotExpired,
     provider: session.user?.app_metadata?.provider,
-    expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null
+    expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null,
+    providerToken: !!session.provider_token,
+    refreshToken: !!session.provider_refresh_token
   });
 
   return hasDiscordToken && tokenNotExpired;
 };
 
-// Helper function to refresh Discord token if needed
+// Enhanced function to refresh Discord token
 export const refreshDiscordToken = async () => {
   try {
+    console.log('Attempting to refresh Discord token...');
+    
+    // First try the standard refresh
     const { data, error } = await supabase.auth.refreshSession();
     
     if (error) {
       console.error('Error refreshing session:', error);
+      
+      // If refresh fails, the user needs to re-authenticate
+      if (error.message?.includes('Invalid refresh token') || error.message?.includes('refresh_token_not_found')) {
+        console.warn('Refresh token is invalid - user needs to re-authenticate');
+        return false;
+      }
+      
       return false;
     }
 
-    console.log('Session refreshed successfully');
-    return true;
+    if (data?.session?.provider_token) {
+      console.log('Discord token refreshed successfully');
+      return true;
+    } else {
+      console.warn('Session refreshed but no provider token available');
+      return false;
+    }
   } catch (error) {
     console.error('Exception refreshing session:', error);
+    return false;
+  }
+};
+
+// Function to force re-authentication with Discord
+export const forceDiscordReauth = async () => {
+  try {
+    console.log('Forcing Discord re-authentication...');
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        scopes: 'identify guilds',
+        redirectTo: window.location.origin + '/dashboard'
+      }
+    });
+
+    if (error) {
+      console.error('Error during Discord re-auth:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Exception during Discord re-auth:', error);
     return false;
   }
 };
