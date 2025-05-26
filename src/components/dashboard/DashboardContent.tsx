@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import ServerList from "./ServerList";
 import SettingsNav from "./SettingsNav";
@@ -7,6 +8,7 @@ import RoleManagement from "./settings/RoleManagement";
 import LoggingSettings from "./settings/LoggingSettings";
 import { Skeleton } from "../ui/skeleton";
 import { cn } from "@/lib/utils";
+import { RefetchOptions } from "@tanstack/react-query";
 
 interface DashboardContentProps {
   guilds: any[];
@@ -20,6 +22,8 @@ interface DashboardContentProps {
   currentGuild: any;
   profiles?: any;
   handleSettingsUpdate: (key: string, value: any) => void;
+  discordStatus: string;
+  onRefreshServers: (options?: RefetchOptions) => Promise<any>;
 }
 
 const DashboardContent = ({
@@ -33,6 +37,8 @@ const DashboardContent = ({
   settings,
   currentGuild,
   handleSettingsUpdate,
+  discordStatus,
+  onRefreshServers,
 }: DashboardContentProps) => {
   const botInviteLink =
     "https://discord.com/oauth2/authorize?client_id=1372175162807418951&permissions=8&integration_type=0&scope=bot+applications.commands";
@@ -112,6 +118,8 @@ const DashboardContent = ({
         ) : (
           <EmptyServerState 
             botInviteLink={botInviteLink}
+            discordStatus={discordStatus}
+            onRefreshServers={onRefreshServers}
           />
         )}
       </div>
