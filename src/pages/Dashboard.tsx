@@ -35,6 +35,8 @@ const Dashboard = () => {
     isLoadingSettings,
     handleSettingsUpdate,
     currentGuild,
+    discordStatus,
+    refetchServers,
   } = useServerData(isAuthenticated);
 
   const [profile, setProfile] = useState(null);
@@ -145,6 +147,8 @@ const Dashboard = () => {
         currentGuild={currentGuild}
         handleSettingsUpdate={handleSettingsUpdate}
         profiles={profile}
+        discordStatus={discordStatus}
+        onRefreshServers={refetchServers}
       />
     </DashboardLayout>
   );

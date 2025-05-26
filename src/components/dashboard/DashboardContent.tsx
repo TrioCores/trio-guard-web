@@ -110,7 +110,9 @@ const DashboardContent = ({
             )}
           </div>
         ) : (
-          <EmptyServerState botInviteLink={botInviteLink} />
+          <EmptyServerState 
+            botInviteLink={botInviteLink}
+          />
         )}
       </div>
     </div>

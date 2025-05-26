@@ -1,19 +1,26 @@
 
-import { Server, Shield, ExternalLink, Plus } from "lucide-react";
-import { useState } from "react";
+import { Server, Shield, ExternalLink, Plus, AlertTriangle, RefreshCw } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { addTestServer } from "@/lib/server";
+import { addTestServer, checkDiscordOAuthStatus } from "@/lib/server";
 import { toast } from "@/hooks/use-toast";
 
 interface EmptyServerStateProps {
   botInviteLink?: string;
+  discordStatus?: string;
+  onRefresh?: () => void;
 }
 
-const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
+const EmptyServerState = ({ botInviteLink, discordStatus, onRefresh }: EmptyServerStateProps) => {
   const [isHovering, setIsHovering] = useState(false);
   const [isAddingTest, setIsAddingTest] = useState(false);
+  const [oauthStatus, setOauthStatus] = useState<any>(null);
   const defaultInviteLink = "https://discord.com/oauth2/authorize?client_id=1372175162807418951&permissions=8&scope=bot+applications.commands";
   const inviteUrl = botInviteLink || defaultInviteLink;
+  
+  useEffect(() => {
+    checkDiscordOAuthStatus().then(setOauthStatus);
+  }, []);
   
   const handleAddTestServer = async () => {
     setIsAddingTest(true);
@@ -24,7 +31,7 @@ const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
           title: "Test server added",
           description: "A test server has been added to your list",
         });
-        window.location.reload(); // Refresh to show the new server
+        if (onRefresh) onRefresh();
       } else {
         toast({
           title: "Failed to add test server",
@@ -43,6 +50,34 @@ const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
       setIsAddingTest(false);
     }
   };
+
+  const getStatusMessage = () => {
+    if (!oauthStatus) return "Checking Discord connection...";
+    
+    switch (oauthStatus.status) {
+      case 'no_session':
+        return "Please log in with Discord first";
+      case 'wrong_provider':
+        return "Please log in using Discord (not email)";
+      case 'no_token':
+        return "Discord token expired - please log out and log back in";
+      case 'valid':
+        return "Discord connection is working properly";
+      default:
+        return "Unknown Discord connection status";
+    }
+  };
+
+  const getStatusIcon = () => {
+    if (!oauthStatus) return <RefreshCw className="w-5 h-5 animate-spin" />;
+    
+    switch (oauthStatus.status) {
+      case 'valid':
+        return <Shield className="w-5 h-5 text-green-500" />;
+      default:
+        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+    }
+  };
   
   return (
     <div className="bg-white rounded-xl shadow-sm p-8 text-center animate-fade-in-up">
@@ -53,9 +88,20 @@ const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
         />
         <div className={`absolute inset-0 bg-trioguard-light/20 rounded-full scale-0 transition-all duration-500 ${isHovering ? 'scale-150 opacity-0' : 'scale-0 opacity-0'}`}></div>
       </div>
+      
       <h2 className="text-xl font-bold mb-2">No Servers Found</h2>
+      
+      {/* Discord Status */}
+      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          {getStatusIcon()}
+          <span className="font-medium">Discord Status</span>
+        </div>
+        <p className="text-sm text-gray-600">{getStatusMessage()}</p>
+      </div>
+      
       <p className="text-trioguard-dark/70 mb-6">
-        You need to invite TrioGuard to your Discord server and make sure you're logged in with the correct Discord account
+        You need to invite TrioGuard to your Discord server and make sure you're the server owner
       </p>
       
       <div className="space-y-4">
@@ -75,13 +121,24 @@ const EmptyServerState = ({ botInviteLink }: EmptyServerStateProps) => {
         <div className="mt-6 text-sm text-gray-500 max-w-md mx-auto">
           <h3 className="font-medium mb-2">Troubleshooting steps:</h3>
           <ul className="text-left space-y-1.5">
-            <li>✓ Make sure you're logged in with the correct Discord account</li>
+            <li>✓ Make sure you're logged in with Discord (not email)</li>
             <li>✓ Ensure you OWN the Discord server (not just admin)</li>
-            <li>✓ Try logging out and logging back in</li>
-            <li>✓ Check browser console for any error messages</li>
+            <li>✓ Invite the bot to your server with proper permissions</li>
+            <li>✓ Try logging out and logging back in if token expired</li>
           </ul>
           
           <div className="flex flex-col gap-2 mt-4">
+            {onRefresh && (
+              <Button
+                onClick={onRefresh}
+                variant="outline"
+                className="w-full"
+              >
+                <RefreshCw size={16} className="mr-2" />
+                Refresh Servers
+              </Button>
+            )}
+            
             <Button
               onClick={() => window.location.reload()}
               variant="outline"

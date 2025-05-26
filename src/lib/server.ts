@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, checkDiscordToken, refreshDiscordToken } from "@/integrations/supabase/client";
 
 export async function fetchServers() {
   try {
@@ -100,60 +100,96 @@ export async function updateBotSettings(serverId: string, settings: any) {
   return data?.[0] || null;
 }
 
-// Function to sync Discord servers to database
-async function syncDiscordServers(accessToken: string, userId: string) {
-  try {
-    console.log('Fetching Discord guilds with access token...');
-    
-    const response = await fetch('https://discord.com/api/users/@me/guilds', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+// Enhanced Discord API interaction with better error handling
+async function fetchDiscordGuilds(accessToken: string) {
+  const response = await fetch('https://discord.com/api/users/@me/guilds', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Discord API error:', {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorText
     });
 
-    if (!response.ok) {
-      console.error('Discord API error:', response.status, await response.text());
-      return false;
+    // Handle specific Discord API errors
+    if (response.status === 401) {
+      throw new Error('Discord token expired or invalid');
+    } else if (response.status === 429) {
+      throw new Error('Discord API rate limit exceeded');
+    } else if (response.status >= 500) {
+      throw new Error('Discord API server error');
+    } else {
+      throw new Error(`Discord API error: ${response.status}`);
+    }
+  }
+
+  return response.json();
+}
+
+// Function to sync Discord servers to database with enhanced error handling
+async function syncDiscordServers(accessToken: string, userId: string) {
+  try {
+    console.log('Starting Discord server sync for user:', userId);
+    
+    const guilds = await fetchDiscordGuilds(accessToken);
+    console.log('Discord guilds fetched:', guilds.length, 'guilds');
+
+    // Filter guilds where user is owner
+    const ownedGuilds = guilds.filter((guild: any) => {
+      const isOwner = guild.owner === true;
+      console.log(`Guild ${guild.name}: owner=${guild.owner}, permissions=${guild.permissions}`);
+      return isOwner;
+    });
+
+    console.log('Owned guilds found:', ownedGuilds.length);
+
+    if (ownedGuilds.length === 0) {
+      console.warn('No owned guilds found. User may not be owner of any servers.');
+      return { success: true, syncedCount: 0, ownedCount: 0 };
     }
 
-    const guilds = await response.json();
-    console.log('Discord guilds fetched:', guilds);
-
-    // Filter guilds where user is owner (permission & 0x8 means admin, but we want owner)
-    const ownedGuilds = guilds.filter((guild: any) => guild.owner === true);
-    console.log('Owned guilds:', ownedGuilds);
-
     // Sync owned guilds to database
+    let syncedCount = 0;
     for (const guild of ownedGuilds) {
-      const iconUrl = guild.icon 
-        ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
-        : null;
+      try {
+        const iconUrl = guild.icon 
+          ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
+          : null;
 
-      console.log(`Syncing guild: ${guild.name} (${guild.id})`);
+        console.log(`Syncing guild: ${guild.name} (${guild.id})`);
 
-      const { error } = await supabase
-        .from('servers')
-        .upsert({
-          id: guild.id,
-          name: guild.name,
-          icon: iconUrl,
-          owner_id: userId,
-        }, {
-          onConflict: 'id'
-        });
+        const { error } = await supabase
+          .from('servers')
+          .upsert({
+            id: guild.id,
+            name: guild.name,
+            icon: iconUrl,
+            owner_id: userId,
+          }, {
+            onConflict: 'id'
+          });
 
-      if (error) {
-        console.error(`Error syncing guild ${guild.id}:`, error);
-      } else {
-        console.log(`Successfully synced guild: ${guild.name}`);
+        if (error) {
+          console.error(`Error syncing guild ${guild.id}:`, error);
+        } else {
+          console.log(`Successfully synced guild: ${guild.name}`);
+          syncedCount++;
+        }
+      } catch (error) {
+        console.error(`Exception syncing guild ${guild.id}:`, error);
       }
     }
 
-    return true;
+    return { success: true, syncedCount, ownedCount: ownedGuilds.length };
   } catch (error) {
     console.error('Error syncing Discord servers:', error);
-    return false;
+    return { success: false, error: error.message };
   }
 }
 
@@ -168,24 +204,52 @@ export async function fetchOwnedServersForUser() {
 
     const userId = session.user.id;
     console.log('Current user ID:', userId);
-    console.log('Session details:', session);
 
-    // Check if we have a Discord access token
-    const accessToken = session.provider_token;
+    // Check if we have a valid Discord access token
+    const hasValidToken = await checkDiscordToken();
     
-    if (accessToken) {
-      console.log('Discord access token found, syncing servers...');
-      const syncSuccess = await syncDiscordServers(accessToken, userId);
+    if (!hasValidToken) {
+      console.warn('No valid Discord token found, attempting refresh...');
+      const refreshed = await refreshDiscordToken();
       
-      if (!syncSuccess) {
-        console.warn('Failed to sync Discord servers, using database only');
+      if (!refreshed) {
+        console.error('Failed to refresh Discord token');
+        // Still try to fetch from database
+        return await fetchServersFromDatabase(userId);
       }
-    } else {
-      console.warn('No Discord access token found in session');
     }
 
-    // Fetch servers from database
-    console.log('Fetching servers from database...');
+    // Get fresh session after potential refresh
+    const { data: { session: freshSession } } = await supabase.auth.getSession();
+    const accessToken = freshSession?.provider_token;
+
+    if (accessToken) {
+      console.log('Discord access token found, syncing servers...');
+      const syncResult = await syncDiscordServers(accessToken, userId);
+      
+      if (!syncResult.success) {
+        console.warn('Failed to sync Discord servers:', syncResult.error);
+        // Fall back to database only
+      } else {
+        console.log(`Successfully synced ${syncResult.syncedCount}/${syncResult.ownedCount} owned servers`);
+      }
+    } else {
+      console.warn('No Discord access token available after refresh');
+    }
+
+    // Always fetch from database as final step
+    return await fetchServersFromDatabase(userId);
+
+  } catch (error) {
+    console.error('Exception in fetchOwnedServersForUser:', error);
+    return [];
+  }
+}
+
+// Helper function to fetch servers from database
+async function fetchServersFromDatabase(userId: string) {
+  try {
+    console.log('Fetching servers from database for user:', userId);
     const { data: servers, error } = await supabase
       .from('servers')
       .select('*')
@@ -196,11 +260,10 @@ export async function fetchOwnedServersForUser() {
       return [];
     }
 
-    console.log('Final servers list:', servers);
+    console.log('Servers fetched from database:', servers?.length || 0, 'servers');
     return servers || [];
-
   } catch (error) {
-    console.error('Exception in fetchOwnedServersForUser:', error);
+    console.error('Exception fetching servers from database:', error);
     return [];
   }
 }
@@ -238,5 +301,30 @@ export async function addTestServer() {
   } catch (error) {
     console.error('Exception adding test server:', error);
     return null;
+  }
+}
+
+// Function to check Discord OAuth status
+export async function checkDiscordOAuthStatus() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      return { status: 'no_session', message: 'User not logged in' };
+    }
+
+    if (session.user?.app_metadata?.provider !== 'discord') {
+      return { status: 'wrong_provider', message: 'User not logged in with Discord' };
+    }
+
+    const hasToken = await checkDiscordToken();
+    if (!hasToken) {
+      return { status: 'no_token', message: 'No valid Discord token found' };
+    }
+
+    return { status: 'valid', message: 'Discord OAuth is properly configured' };
+  } catch (error) {
+    console.error('Error checking Discord OAuth status:', error);
+    return { status: 'error', message: error.message };
   }
 }

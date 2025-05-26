@@ -6,12 +6,28 @@ import {
   fetchOwnedServersForUser,
   fetchBotSettings,
   updateBotSettings,
+  checkDiscordOAuthStatus,
 } from "@/lib/server";
 
 export const useServerData = (isAuthenticated: boolean) => {
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
   const [activeSettingTab, setActiveSettingTab] = useState<string>("general");
+  const [discordStatus, setDiscordStatus] = useState<string>('checking');
   const queryClient = useQueryClient();
+
+  // Check Discord OAuth status when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      checkDiscordOAuthStatus().then((status) => {
+        setDiscordStatus(status.status);
+        console.log('Discord OAuth status:', status);
+        
+        if (status.status !== 'valid') {
+          console.warn('Discord OAuth issue:', status.message);
+        }
+      });
+    }
+  }, [isAuthenticated]);
 
   // Add effect to log authentication status
   useEffect(() => {
@@ -19,7 +35,7 @@ export const useServerData = (isAuthenticated: boolean) => {
   }, [isAuthenticated]);
 
   // Fetch owned servers for the current user
-  const { data: guilds = [], isLoading: isLoadingServers, error: serverError } = useQuery<any[]>({
+  const { data: guilds = [], isLoading: isLoadingServers, error: serverError, refetch: refetchServers } = useQuery<any[]>({
     queryKey: ["servers"],
     queryFn: async () => {
       console.log('Fetching servers - authentication status:', isAuthenticated);
@@ -31,20 +47,44 @@ export const useServerData = (isAuthenticated: boolean) => {
       try {
         const servers = await fetchOwnedServersForUser();
         console.log('Servers fetched successfully:', servers);
+        
+        if (servers.length === 0 && discordStatus === 'valid') {
+          toast({
+            title: "No servers found",
+            description: "Make sure you own Discord servers with the bot invited",
+            variant: "destructive",
+          });
+        }
+        
         return servers;
       } catch (error) {
         console.error('Error in server fetch query:', error);
+        
+        // Show specific error messages based on the type of error
+        let errorMessage = "There was an error loading your Discord servers";
+        if (error.message?.includes('token')) {
+          errorMessage = "Discord authentication expired. Please log out and log back in.";
+        } else if (error.message?.includes('rate limit')) {
+          errorMessage = "Discord API rate limit reached. Please try again in a few minutes.";
+        }
+        
         toast({
           title: "Error fetching servers",
-          description: "There was an error loading your Discord servers",
+          description: errorMessage,
           variant: "destructive",
         });
         return [];
       }
     },
     enabled: isAuthenticated,
-    retry: 2,
-    retryDelay: 1000,
+    retry: (failureCount, error) => {
+      // Don't retry on authentication errors
+      if (error?.message?.includes('token') || error?.message?.includes('401')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   // Log server fetch results
@@ -102,6 +142,8 @@ export const useServerData = (isAuthenticated: boolean) => {
     isLoadingServers,
     isLoadingSettings,
     handleSettingsUpdate,
+    discordStatus,
+    refetchServers,
     currentGuild: selectedGuild
       ? guilds.find((guild: any) => guild.id === selectedGuild)
       : null,
