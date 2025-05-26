@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from "react";
 import ServerList from "./ServerList";
 import SettingsNav from "./SettingsNav";
@@ -119,7 +120,7 @@ const DashboardContent = ({
           <EmptyServerState 
             botInviteLink={botInviteLink}
             discordStatus={discordStatus}
-            onRefreshServers={onRefreshServers}
+            onRefresh={onRefreshServers}
           />
         )}
       </div>
@@ -128,3 +129,4 @@ const DashboardContent = ({
 };
 
 export default DashboardContent;
+
