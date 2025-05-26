@@ -19,7 +19,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
 });
 
-// Helper function to check if user has valid Discord OAuth token
+// Enhanced function to check if Discord token is actually valid by testing it against Discord API
 export const checkDiscordToken = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   
@@ -41,7 +41,32 @@ export const checkDiscordToken = async () => {
     refreshToken: !!session.provider_refresh_token
   });
 
-  return hasDiscordToken && tokenNotExpired;
+  // If we don't have the basic requirements, return false
+  if (!hasDiscordToken || !tokenNotExpired) {
+    return false;
+  }
+
+  // Test the token against Discord API to see if it's actually valid
+  try {
+    console.log('Testing Discord token against API...');
+    const response = await fetch('https://discord.com/api/users/@me', {
+      headers: {
+        'Authorization': `Bearer ${session.provider_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      console.log('Discord token is valid');
+      return true;
+    } else {
+      console.log('Discord token is invalid or expired:', response.status);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error testing Discord token:', error);
+    return false;
+  }
 };
 
 // Enhanced function to refresh Discord token
@@ -66,7 +91,16 @@ export const refreshDiscordToken = async () => {
 
     if (data?.session?.provider_token) {
       console.log('Discord token refreshed successfully');
-      return true;
+      
+      // Test the new token against Discord API
+      const isValid = await checkDiscordToken();
+      if (isValid) {
+        console.log('Refreshed Discord token is valid');
+        return true;
+      } else {
+        console.warn('Refreshed Discord token is still invalid');
+        return false;
+      }
     } else {
       console.warn('Session refreshed but no provider token available');
       return false;

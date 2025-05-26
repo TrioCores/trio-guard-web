@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -34,7 +33,7 @@ export const useServerData = (isAuthenticated: boolean) => {
     console.log('useServerData - Authentication status:', isAuthenticated);
   }, [isAuthenticated]);
 
-  // Fetch owned servers for the current user
+  // Fetch owned servers for the current user with enhanced retry logic
   const { data: guilds = [], isLoading: isLoadingServers, error: serverError, refetch: refetchServers } = useQuery<any[]>({
     queryKey: ["servers"],
     queryFn: async () => {
@@ -65,8 +64,13 @@ export const useServerData = (isAuthenticated: boolean) => {
         let errorTitle = "Error fetching servers";
         
         if (error.message?.includes('authentication') || error.message?.includes('token')) {
-          errorTitle = "Discord Authentication Required";
-          errorMessage = error.message;
+          errorTitle = "Discord Authentication Issue";
+          
+          if (error.message?.includes('could not be refreshed')) {
+            errorMessage = "Your Discord session has expired. Please log out and log back in to reconnect your Discord account.";
+          } else {
+            errorMessage = error.message;
+          }
           
           // Update Discord status to reflect the authentication issue
           setDiscordStatus('no_token');
@@ -85,13 +89,20 @@ export const useServerData = (isAuthenticated: boolean) => {
     },
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
-      // Don't retry on authentication errors
-      if (error?.message?.includes('token') || error?.message?.includes('401') || error?.message?.includes('authentication')) {
+      // Don't retry on authentication errors that require user intervention
+      if (error?.message?.includes('log out and log back in') || 
+          error?.message?.includes('could not be refreshed') ||
+          error?.message?.includes('401')) {
         return false;
       }
+      // Allow retries for other errors, but limit to 2 attempts
       return failureCount < 2;
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    // Refetch every 5 minutes to keep tokens fresh
+    refetchInterval: 5 * 60 * 1000,
+    // Refetch when window becomes focused to handle token expiration
+    refetchOnWindowFocus: true,
   });
 
   // Log server fetch results
